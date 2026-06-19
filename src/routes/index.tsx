@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
   SelectContent,
@@ -52,7 +55,7 @@ const EMAIL = "hello@dukadigital.co.ke";
 const packages = [
   {
     name: "Kibanda Starter",
-    price: "KSh 25,000",
+    price: "KSh 15,000",
     tag: "Perfect for first-time online sellers",
     icon: Store,
     features: [
@@ -65,7 +68,7 @@ const packages = [
   },
   {
     name: "Duka Growth",
-    price: "KSh 65,000",
+    price: "KSh 30,000",
     tag: "Our most-loved package",
     icon: ShoppingBag,
     featured: true,
@@ -80,7 +83,7 @@ const packages = [
   },
   {
     name: "Soko Scale",
-    price: "KSh 150,000",
+    price: "KSh 50,000",
     tag: "For ambitious, growing brands",
     icon: Rocket,
     features: [
@@ -110,29 +113,95 @@ const times = [
   "14:00", "15:00", "16:00", "17:00",
 ];
 
+const bookingSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, { message: "Please enter your full name." })
+    .max(80, { message: "Name must be under 80 characters." }),
+  industry: z
+    .string()
+    .min(1, { message: "Please choose your business industry." }),
+  date: z
+    .string()
+    .min(1, { message: "Please pick a preferred date." })
+    .refine((v) => {
+      const d = new Date(v + "T00:00:00");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return !Number.isNaN(d.getTime()) && d >= today;
+    }, { message: "Pick today or a future date." }),
+  time: z
+    .string()
+    .min(1, { message: "Please pick a preferred time." })
+    .regex(/^\d{2}:\d{2}$/, { message: "Invalid time." }),
+  phone: z
+    .string()
+    .trim()
+    .min(7, { message: "Phone number looks too short." })
+    .max(15, { message: "Phone number looks too long." })
+    .regex(/^(\+?254|0)[17]\d{8}$/, {
+      message: "Use a valid Kenyan number, e.g. 07XX XXX XXX or +2547XX XXX XXX.",
+    }),
+});
+
+type FormState = z.input<typeof bookingSchema>;
+type FieldErrors = Partial<Record<keyof FormState, string>>;
+
 function Index() {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     name: "",
     industry: "",
     date: "",
     time: "",
     phone: "",
   });
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.industry || !form.date || !form.time || !form.phone) {
-      toast.error("Please fill in all fields to book your call.");
+    const phoneClean = form.phone.replace(/\s+/g, "");
+    const parsed = bookingSchema.safeParse({ ...form, phone: phoneClean });
+    if (!parsed.success) {
+      const fieldErrors: FieldErrors = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0] as keyof FormState | undefined;
+        if (key && !fieldErrors[key]) fieldErrors[key] = issue.message;
+      }
+      setErrors(fieldErrors);
+      toast.error("Please fix the highlighted fields and try again.");
       return;
     }
-    if (!/^[0-9+\s]{7,15}$/.test(form.phone)) {
-      toast.error("Please enter a valid phone number.");
-      return;
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from("discovery_calls").insert({
+        name: parsed.data.name,
+        industry: parsed.data.industry,
+        preferred_date: parsed.data.date,
+        preferred_time: parsed.data.time,
+        phone: parsed.data.phone,
+      });
+      if (error) throw error;
+      toast.success("Discovery call requested!", {
+        description: `We'll confirm ${parsed.data.date} at ${parsed.data.time} with you shortly.`,
+      });
+      setForm({ name: "", industry: "", date: "", time: "", phone: "" });
+      setErrors({});
+    } catch (err) {
+      console.error("discovery_calls insert failed", err);
+      toast.error("Couldn't send your request", {
+        description: "Please try again, or WhatsApp us directly.",
+      });
+    } finally {
+      setSubmitting(false);
     }
-    toast.success("Discovery call requested!", {
-      description: `We'll confirm ${form.date} at ${form.time} with you shortly.`,
-    });
-    setForm({ name: "", industry: "", date: "", time: "", phone: "" });
   };
 
   const today = new Date().toISOString().split("T")[0];
@@ -157,12 +226,17 @@ function Index() {
             <a href="#packages" className="hover:text-[var(--brand-cream)]">Packages</a>
             <a href="#book" className="hover:text-[var(--brand-cream)]">Book a call</a>
           </div>
-          <a
-            href="#book"
-            className="hidden rounded-full bg-[var(--brand-amber)] px-5 py-2 text-sm font-semibold text-[var(--brand-emerald-deep)] transition hover:brightness-105 sm:inline-flex"
-          >
-            Get started
-          </a>
+          <div className="flex items-center gap-3">
+            <div className="text-[var(--brand-cream)]">
+              <ThemeToggle />
+            </div>
+            <a
+              href="#book"
+              className="hidden rounded-full bg-[var(--brand-amber)] px-5 py-2 text-sm font-semibold text-[var(--brand-emerald-deep)] transition hover:brightness-105 sm:inline-flex"
+            >
+              Get started
+            </a>
+          </div>
         </nav>
       </header>
 
