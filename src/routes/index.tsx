@@ -451,19 +451,26 @@ function Index() {
                 <Input
                   id="name"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) => updateField("name", e.target.value)}
                   placeholder="Jane Wanjiku"
                   maxLength={80}
-                  className="mt-2"
+                  aria-invalid={!!errors.name}
+                  className={`mt-2 ${errors.name ? "border-destructive" : ""}`}
                 />
+                {errors.name && (
+                  <p className="mt-1.5 text-xs text-destructive">{errors.name}</p>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <Label>Business industry</Label>
                 <Select
                   value={form.industry}
-                  onValueChange={(v) => setForm({ ...form, industry: v })}
+                  onValueChange={(v) => updateField("industry", v)}
                 >
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger
+                    aria-invalid={!!errors.industry}
+                    className={`mt-2 ${errors.industry ? "border-destructive" : ""}`}
+                  >
                     <SelectValue placeholder="Select your industry" />
                   </SelectTrigger>
                   <SelectContent>
@@ -472,6 +479,9 @@ function Index() {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.industry && (
+                  <p className="mt-1.5 text-xs text-destructive">{errors.industry}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="date">Preferred date</Label>
@@ -480,17 +490,24 @@ function Index() {
                   type="date"
                   min={today}
                   value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  className="mt-2"
+                  onChange={(e) => updateField("date", e.target.value)}
+                  aria-invalid={!!errors.date}
+                  className={`mt-2 ${errors.date ? "border-destructive" : ""}`}
                 />
+                {errors.date && (
+                  <p className="mt-1.5 text-xs text-destructive">{errors.date}</p>
+                )}
               </div>
               <div>
                 <Label>Preferred time</Label>
                 <Select
                   value={form.time}
-                  onValueChange={(v) => setForm({ ...form, time: v })}
+                  onValueChange={(v) => updateField("time", v)}
                 >
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger
+                    aria-invalid={!!errors.time}
+                    className={`mt-2 ${errors.time ? "border-destructive" : ""}`}
+                  >
                     <SelectValue placeholder="Pick a time" />
                   </SelectTrigger>
                   <SelectContent>
@@ -499,6 +516,9 @@ function Index() {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.time && (
+                  <p className="mt-1.5 text-xs text-destructive">{errors.time}</p>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <Label htmlFor="phone">Phone number</Label>
@@ -506,19 +526,24 @@ function Index() {
                   id="phone"
                   type="tel"
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  onChange={(e) => updateField("phone", e.target.value)}
                   placeholder="07XX XXX XXX"
                   maxLength={15}
-                  className="mt-2"
+                  aria-invalid={!!errors.phone}
+                  className={`mt-2 ${errors.phone ? "border-destructive" : ""}`}
                 />
+                {errors.phone && (
+                  <p className="mt-1.5 text-xs text-destructive">{errors.phone}</p>
+                )}
               </div>
             </div>
             <Button
               type="submit"
               size="lg"
+              disabled={submitting}
               className="mt-6 w-full rounded-full bg-[var(--brand-emerald)] text-[var(--brand-cream)] hover:bg-[var(--brand-emerald-deep)]"
             >
-              Book my discovery call
+              {submitting ? "Sending…" : "Book my discovery call"}
             </Button>
             <p className="mt-3 text-center text-xs text-muted-foreground">
               We'll confirm by phone or WhatsApp within one business day.
